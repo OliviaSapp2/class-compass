@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Gap, TutorMessage, SupportedLanguage, TutorPhase, getTutorResponse, TutorSessionSummary } from '@/lib/studentMockData';
+import { Gap, TutorMessage, SupportedLanguage, TutorPhase, TutorSessionSummary, TutorPracticeQuestion } from '@/lib/studentMockData';
 import { MessageBubble } from './MessageBubble';
 import { QuickReplyChips } from './QuickReplyChips';
 import { VoiceRecorderSheet } from './VoiceRecorderSheet';
@@ -15,6 +15,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { PracticeQuestionCard } from './PracticeQuestionCard';
 import { SessionSummaryCard } from './SessionSummaryCard';
 import { useApp } from '@/contexts/AppContext';
+import { sendTutorMessage } from '@/lib/api/tutor-chat';
 import { toast } from 'sonner';
 
 interface TutorChatShellProps {
@@ -22,7 +23,7 @@ interface TutorChatShellProps {
 }
 
 export function TutorChatShell({ initialTopicId }: TutorChatShellProps) {
-  const { studentGaps, addGapToPlan } = useApp();
+  const { studentGaps, addGapToPlan, studentProfile } = useApp();
   
   const [messages, setMessages] = useState<TutorMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -34,6 +35,7 @@ export function TutorChatShell({ initialTopicId }: TutorChatShellProps) {
   const [currentPhase, setCurrentPhase] = useState<TutorPhase>('greeting');
   const [detectedMisconceptions, setDetectedMisconceptions] = useState<string[]>([]);
   const [sessionSummary, setSessionSummary] = useState<TutorSessionSummary | null>(null);
+  const [currentPracticeQ, setCurrentPracticeQ] = useState<TutorPracticeQuestion | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -57,23 +59,84 @@ export function TutorChatShell({ initialTopicId }: TutorChatShellProps) {
     }
   }, [messages]);
 
+  // Helper to call the Stack AI tutor
+  const callTutor = async (message: string, history: TutorMessage[]): Promise<{
+    content: string;
+    quickReplies?: string[] | null;
+    practiceQuestion?: TutorPracticeQuestion | null;
+    phase?: string;
+  } | null> => {
+    try {
+      const result = await sendTutorMessage(
+        message,
+        history.map(m => ({ role: m.role, content: m.content })),
+        {
+          topic: currentTopic,
+          topicPath: currentTopicPath,
+          studentName: studentProfile.name,
+          grade: studentProfile.grade,
+          language,
+          bilingualMode,
+          misconceptions: detectedMisconceptions,
+          gaps: studentGaps,
+        }
+      );
+
+      if (!result.success) {
+        console.error('Tutor error:', result.error);
+        toast.error('Failed to get tutor response');
+        return null;
+      }
+
+      return {
+        content: result.response || '',
+        quickReplies: result.quickReplies,
+        practiceQuestion: result.practiceQuestion,
+        phase: result.phase,
+      };
+    } catch (error) {
+      console.error('Tutor call failed:', error);
+      toast.error('Failed to connect to tutor');
+      return null;
+    }
+  };
+
   const startSession = async () => {
     setIsTyping(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const greetingMessage = getTutorResponse(currentTopic, 'greeting');
-    setMessages([greetingMessage]);
+    // Send initial greeting request to Stack AI
+    const result = await callTutor(
+      `[SYSTEM: Start tutoring session for topic "${currentTopic}". Greet the student and ask if they want help with this topic.]`,
+      []
+    );
+    
+    if (result) {
+      const greetingMessage: TutorMessage = {
+        id: `tutor-${Date.now()}`,
+        role: 'tutor',
+        content: result.content,
+        timestamp: new Date().toISOString(),
+        phase: 'greeting',
+        quickReplies: result.quickReplies || ["Yes, let's do it!", "Can we pick another topic?"],
+      };
+      setMessages([greetingMessage]);
+      if (result.phase) {
+        setCurrentPhase(result.phase as TutorPhase);
+      }
+    } else {
+      // Fallback greeting if API fails
+      const fallbackGreeting: TutorMessage = {
+        id: `tutor-${Date.now()}`,
+        role: 'tutor',
+        content: `Hi! I'm your AI tutor. I see you're working on ${currentTopic}. Ready to learn together?`,
+        timestamp: new Date().toISOString(),
+        phase: 'greeting',
+        quickReplies: ["Yes, let's do it!", "Can we pick another topic?"],
+      };
+      setMessages([fallbackGreeting]);
+    }
+    
     setIsTyping(false);
-    
-    // After greeting, confirm topic
-    setTimeout(async () => {
-      setIsTyping(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const confirmMessage = getTutorResponse(currentTopic, 'topic_confirm');
-      setMessages(prev => [...prev, confirmMessage]);
-      setCurrentPhase('topic_confirm');
-      setIsTyping(false);
-    }, 1500);
   };
 
   const handleSendMessage = async (text: string) => {
@@ -89,105 +152,56 @@ export function TutorChatShell({ initialTopicId }: TutorChatShellProps) {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
 
-    // Simulate tutor response based on current phase
+    // Call Stack AI tutor
     setIsTyping(true);
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-
-    let nextMessage: TutorMessage;
-    let nextPhase = currentPhase;
-
-    switch (currentPhase) {
-      case 'topic_confirm':
-        if (text.toLowerCase().includes('yes') || text.toLowerCase().includes('right')) {
-          nextMessage = getTutorResponse(currentTopic, 'find_misconception');
-          nextPhase = 'find_misconception';
-        } else {
-          nextMessage = {
-            id: `tutor-${Date.now()}`,
-            role: 'tutor',
-            content: "No problem! What topic would you like help with? You can pick from your gaps above.",
-            timestamp: new Date().toISOString(),
-            phase: 'topic_confirm',
-          };
-        }
-        break;
-
-      case 'find_misconception':
-        // Detect misconception from user's response
-        const misconception = text.length > 20 ? text.slice(0, 30) + '...' : text;
-        setDetectedMisconceptions(prev => [...prev, misconception]);
-        nextMessage = getTutorResponse(currentTopic, 'micro_lesson');
-        nextPhase = 'micro_lesson';
-        break;
-
-      case 'micro_lesson':
-        nextMessage = getTutorResponse(currentTopic, 'practice');
-        nextPhase = 'practice';
-        break;
-
-      case 'practice':
-        // Check if answer seems correct (mock logic)
-        const seemsCorrect = text.includes('1') || text.includes('2') || text.toLowerCase().includes('correct');
-        if (seemsCorrect) {
-          nextMessage = getTutorResponse(currentTopic, 'outcome');
-          nextPhase = 'outcome';
-          // Generate session summary
-          setSessionSummary({
-            sessionId: `session-${Date.now()}`,
-            topic: currentTopic,
-            struggledWith: detectedMisconceptions,
-            recommendedNextSteps: selectedGap?.recommendedNextSteps || ['Practice more problems'],
-            linkedTaskIds: [],
-            sharedWithTeacher: false,
-          });
-        } else {
-          nextMessage = {
-            id: `tutor-${Date.now()}`,
-            role: 'tutor',
-            content: "Let's think about this a bit more. Remember the key steps we covered. Try again!",
-            timestamp: new Date().toISOString(),
-            phase: 'practice',
-          };
-        }
-        break;
-
-      case 'outcome':
-        if (text.toLowerCase().includes('plan')) {
-          addGapToPlan(selectedGap?.id || '');
-          toast.success('Added to your study plan!');
-          nextMessage = {
-            id: `tutor-${Date.now()}`,
-            role: 'tutor',
-            content: "Great! I've added this topic to your study plan. You're on your way to mastery! 🌟",
-            timestamp: new Date().toISOString(),
-            phase: 'outcome',
-          };
-        } else if (text.toLowerCase().includes('another') || text.toLowerCase().includes('more')) {
-          nextMessage = getTutorResponse(currentTopic, 'practice');
-          nextPhase = 'practice';
-        } else {
-          nextMessage = {
-            id: `tutor-${Date.now()}`,
-            role: 'tutor',
-            content: "No worries—learning takes time. Would you like me to explain it differently, or should we try an easier example?",
-            timestamp: new Date().toISOString(),
-            phase: 'outcome',
-            quickReplies: ["Explain differently", "Easier example", "I'm done for now"],
-          };
-        }
-        break;
-
-      default:
-        nextMessage = {
-          id: `tutor-${Date.now()}`,
-          role: 'tutor',
-          content: "I'm here to help! What would you like to work on?",
-          timestamp: new Date().toISOString(),
-        };
+    
+    const result = await callTutor(text, [...messages, userMessage]);
+    
+    if (result) {
+      const tutorMessage: TutorMessage = {
+        id: `tutor-${Date.now()}`,
+        role: 'tutor',
+        content: result.content,
+        timestamp: new Date().toISOString(),
+        phase: (result.phase as TutorPhase) || currentPhase,
+        quickReplies: result.quickReplies || undefined,
+        practiceQuestion: result.practiceQuestion || undefined,
+      };
+      
+      setMessages(prev => [...prev, tutorMessage]);
+      
+      // Update phase if returned
+      if (result.phase) {
+        setCurrentPhase(result.phase as TutorPhase);
+      }
+      
+      // Update practice question if returned
+      if (result.practiceQuestion) {
+        setCurrentPracticeQ(result.practiceQuestion);
+      }
+      
+      // Check for outcome phase to generate summary
+      if (result.phase === 'outcome') {
+        setSessionSummary({
+          sessionId: `session-${Date.now()}`,
+          topic: currentTopic,
+          struggledWith: detectedMisconceptions,
+          recommendedNextSteps: selectedGap?.recommendedNextSteps || ['Practice more problems'],
+          linkedTaskIds: [],
+          sharedWithTeacher: false,
+        });
+      }
+    } else {
+      // Fallback message if API fails
+      const fallbackMessage: TutorMessage = {
+        id: `tutor-${Date.now()}`,
+        role: 'tutor',
+        content: "I'm having trouble connecting right now. Let me try again - what would you like help with?",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, fallbackMessage]);
     }
-
-    setMessages(prev => [...prev, nextMessage]);
-    setCurrentPhase(nextPhase);
+    
     setIsTyping(false);
   };
 
