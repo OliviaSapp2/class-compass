@@ -111,14 +111,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      setAnalysisProgress(i);
+    try {
+      // Import dynamically to avoid circular dependencies
+      const { runAnalyze } = await import('@/lib/agents');
+      
+      // Progress simulation while waiting for API
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress(prev => Math.min(prev + 5, 90));
+      }, 500);
+      
+      const result = await runAnalyze({
+        class_id: selectedClass.id,
+        student_ids: mockStudents.map(s => s.id),
+        upload_refs: uploads.map(u => u.id),
+      });
+      
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
+      
+      console.log('Analysis result:', result);
+      setLastAnalysisRun(new Date().toISOString());
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      // Still update last run time even on error for UX
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisProgress(0);
     }
-    
-    setLastAnalysisRun(new Date().toISOString());
-    setIsAnalyzing(false);
-    setAnalysisProgress(0);
   };
 
   const addStudentUpload = (upload: StudentUpload) => {
