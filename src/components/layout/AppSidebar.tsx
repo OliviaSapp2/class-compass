@@ -7,7 +7,8 @@ import {
   FileText, 
   Settings,
   GraduationCap,
-  LogOut
+  LogOut,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
@@ -17,6 +18,7 @@ const navItems = [
   { icon: Upload, label: 'Uploads', path: '/uploads' },
   { icon: Users, label: 'Students', path: '/students' },
   { icon: BarChart3, label: 'Class Insights', path: '/insights' },
+  { icon: BookOpen, label: 'Resources', path: '/resources' },
   { icon: FileText, label: 'Reports', path: '/reports' },
 ];
 
