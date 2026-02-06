@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useApp } from '@/contexts/AppContext';
 import { FileText, Users, CheckCircle2, Loader2 } from 'lucide-react';
+import { AnalysisResults } from './AnalysisResults';
+import { useEffect, useState } from 'react';
 
 interface AnalysisModalProps {
   open: boolean;
@@ -23,33 +25,87 @@ export function AnalysisModal({ open, onOpenChange }: AnalysisModalProps) {
     runAnalysis, 
     uploads, 
     students,
-    selectedClass 
+    selectedClass,
+    analysisResult
   } = useApp();
+
+  const [showResults, setShowResults] = useState(false);
+  const [hasCompletedAnalysis, setHasCompletedAnalysis] = useState(false);
 
   const materialsCount = uploads.filter(u => u.type === 'material').length;
   const studentWorkCount = uploads.filter(u => u.type === 'student_work').length;
 
+  // Track when analysis completes
+  useEffect(() => {
+    if (!isAnalyzing && analysisResult && hasCompletedAnalysis) {
+      setShowResults(true);
+    }
+  }, [isAnalyzing, analysisResult, hasCompletedAnalysis]);
+
+  // Reset showResults when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setShowResults(false);
+      setHasCompletedAnalysis(false);
+    }
+  }, [open]);
+
   const handleRunAnalysis = async () => {
-    await runAnalysis();
+    setHasCompletedAnalysis(true);
+    try {
+      await runAnalysis();
+      // Don't close modal - show results instead
+      setShowResults(true);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      // On error, still close modal or show error state
+      onOpenChange(false);
+    }
+  };
+
+  const handleClose = () => {
+    setShowResults(false);
+    setHasCompletedAnalysis(false);
     onOpenChange(false);
   };
 
+  // Determine modal size based on state
+  const getDialogSize = () => {
+    if (showResults && analysisResult) {
+      return 'sm:max-w-4xl max-h-[90vh]';
+    }
+    return 'sm:max-w-md';
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className={getDialogSize()}>
         <DialogHeader>
           <DialogTitle>
-            {isAnalyzing ? 'Running Analysis...' : 'Run Analysis'}
+            {showResults && analysisResult 
+              ? 'Analysis Complete' 
+              : isAnalyzing 
+                ? 'Running Analysis...' 
+                : 'Run Analysis'}
           </DialogTitle>
           <DialogDescription>
-            {isAnalyzing 
-              ? 'Analyzing student performance against curriculum materials.'
-              : `Analyze ${selectedClass.name} performance data.`
+            {showResults && analysisResult
+              ? 'Review the analysis results below.'
+              : isAnalyzing 
+                ? 'Analyzing student performance against curriculum materials.'
+                : `Analyze ${selectedClass.name} performance data.`
             }
           </DialogDescription>
         </DialogHeader>
 
-        {isAnalyzing ? (
+        {showResults && analysisResult ? (
+          <div className="max-h-[calc(90vh-8rem)] overflow-y-auto">
+            <AnalysisResults 
+              result={analysisResult} 
+              onClose={handleClose}
+            />
+          </div>
+        ) : isAnalyzing ? (
           <div className="py-6 space-y-4">
             <Progress value={analysisProgress} className="h-2" />
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -91,9 +147,13 @@ export function AnalysisModal({ open, onOpenChange }: AnalysisModalProps) {
         )}
 
         <DialogFooter>
-          {!isAnalyzing && (
+          {showResults && analysisResult ? (
+            <Button onClick={handleClose}>
+              Close
+            </Button>
+          ) : !isAnalyzing && (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button onClick={handleRunAnalysis}>

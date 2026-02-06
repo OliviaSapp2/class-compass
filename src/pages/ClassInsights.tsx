@@ -19,16 +19,38 @@ import {
 import { useApp } from '@/contexts/AppContext';
 import { mockClassInsights } from '@/lib/mockData';
 import { cn } from '@/lib/utils';
+import { formatAnalysisResult, parseAnalysisText } from '@/lib/analysisParser';
+import { mapAnalysisToClassInsights } from '@/lib/analysisMapper';
+import { useMemo } from 'react';
 
 export default function ClassInsights() {
-  const { students } = useApp();
+  const { students, analysisResult } = useApp();
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
 
-  const filteredInsights = selectedUnit === 'all' 
-    ? mockClassInsights 
-    : mockClassInsights.filter(i => i.unit === selectedUnit);
+  // Get insights from analysis or fallback to mock data
+  const insights = useMemo(() => {
+    if (!analysisResult) {
+      return mockClassInsights;
+    }
+    
+    try {
+      const formattedResult = formatAnalysisResult(analysisResult);
+      const parsed = parseAnalysisText(formattedResult);
+      const analysisInsights = mapAnalysisToClassInsights(parsed, students.length);
+      
+      // Use analysis insights if available, otherwise fallback to mock
+      return analysisInsights.length > 0 ? analysisInsights : mockClassInsights;
+    } catch (error) {
+      console.error('Error mapping analysis to insights:', error);
+      return mockClassInsights;
+    }
+  }, [analysisResult, students.length]);
 
-  const units = [...new Set(mockClassInsights.map(i => i.unit))];
+  const filteredInsights = selectedUnit === 'all' 
+    ? insights 
+    : insights.filter(i => i.unit === selectedUnit);
+
+  const units = [...new Set(insights.map(i => i.unit))];
 
   const getMasteryColor = (score: number) => {
     if (score >= 80) return 'bg-risk-low';
@@ -53,6 +75,11 @@ export default function ClassInsights() {
           <h1 className="text-2xl font-semibold">Class Insights</h1>
           <p className="text-muted-foreground">
             Topic mastery analysis across your class
+            {analysisResult && (
+              <Badge variant="secondary" className="ml-2">
+                From Latest Analysis
+              </Badge>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">

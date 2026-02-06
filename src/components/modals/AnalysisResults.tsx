@@ -10,55 +10,14 @@ import {
   X
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { formatAnalysisResult, parseAnalysisText } from '@/lib/analysisParser';
+import { cn } from '@/lib/utils';
 
 interface AnalysisResultsProps {
   result: any;
   onClose?: () => void;
 }
 
-/**
- * Formats the analysis result for display
- */
-function formatAnalysisResult(result: any): string {
-  if (typeof result === 'string') {
-    return result;
-  }
-  
-  if (result === null || result === undefined) {
-    return 'No results available';
-  }
-
-  // Check for common Stack AI response formats
-  if (result.outputs && Array.isArray(result.outputs)) {
-    return result.outputs.map((output: any) => 
-      typeof output === 'string' ? output : JSON.stringify(output, null, 2)
-    ).join('\n\n');
-  }
-
-  if (result.output) {
-    return typeof result.output === 'string' ? result.output : JSON.stringify(result.output, null, 2);
-  }
-
-  if (result['out-0']) {
-    return typeof result['out-0'] === 'string' ? result['out-0'] : JSON.stringify(result['out-0'], null, 2);
-  }
-
-  // If it's an object, try to find text content
-  if (typeof result === 'object') {
-    // Look for common text fields
-    const textFields = ['text', 'content', 'message', 'response', 'answer', 'result'];
-    for (const field of textFields) {
-      if (result[field] && typeof result[field] === 'string') {
-        return result[field];
-      }
-    }
-    
-    // If no text field found, stringify the whole object
-    return JSON.stringify(result, null, 2);
-  }
-
-  return String(result);
-}
 
 /**
  * Extracts key insights from the result
@@ -89,6 +48,7 @@ function extractInsights(result: any): string[] {
 
 export function AnalysisResults({ result, onClose }: AnalysisResultsProps) {
   const formattedResult = formatAnalysisResult(result);
+  const parsed = parseAnalysisText(formattedResult);
   const insights = extractInsights(result);
 
   const handleCopy = () => {
@@ -161,13 +121,197 @@ export function AnalysisResults({ result, onClose }: AnalysisResultsProps) {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            Full Analysis
+            Analysis Output
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[400px] w-full rounded-md border p-4">
-            <div className="whitespace-pre-wrap text-sm font-mono">
-              {formattedResult}
+          <ScrollArea className="h-[60vh] max-h-[600px] w-full">
+            <div className="prose prose-sm max-w-none pr-4">
+              <div className="text-sm leading-relaxed space-y-2">
+                {(() => {
+                  const lines = formattedResult.split('\n');
+                  const processedLines: JSX.Element[] = [];
+                  let inTable = false;
+                  let tableRows: string[] = [];
+                  let tableIdx = 0;
+
+                  const formatText = (text: string) => {
+                    const parts = text.split(/(\*\*.*?\*\*)/g);
+                    return parts.map((part, pIdx) => {
+                      if (part.startsWith('**') && part.endsWith('**')) {
+                        return (
+                          <strong key={pIdx} className="font-bold text-foreground">
+                            {part.replace(/\*\*/g, '')}
+                          </strong>
+                        );
+                      }
+                      return <span key={pIdx}>{part}</span>;
+                    });
+                  };
+
+                  const renderTable = (rows: string[]) => {
+                    if (rows.length < 2) return null;
+                    
+                    const headers = rows[0].split('|').map(h => h.trim()).filter(h => h);
+                    const dataRows = rows.slice(2).map(row => 
+                      row.split('|').map(cell => cell.trim()).filter((_, i) => i > 0 && i <= headers.length)
+                    );
+
+                    return (
+                      <div key={`table-${tableIdx++}`} className="my-4 overflow-x-auto">
+                        <table className="min-w-full border-collapse border border-border text-xs">
+                          <thead>
+                            <tr className="bg-muted">
+                              {headers.map((header, hIdx) => (
+                                <th key={hIdx} className="border border-border px-3 py-2 text-left font-semibold">
+                                  {formatText(header)}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dataRows.map((row, rIdx) => (
+                              <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
+                                {row.map((cell, cIdx) => (
+                                  <td key={cIdx} className="border border-border px-3 py-2">
+                                    {formatText(cell)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  };
+
+                  for (let idx = 0; idx < lines.length; idx++) {
+                    const line = lines[idx];
+                    const trimmed = line.trim();
+                    
+                    // Handle markdown tables
+                    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+                      if (!inTable) {
+                        inTable = true;
+                        tableRows = [];
+                      }
+                      tableRows.push(trimmed);
+                      continue;
+                    } else if (inTable && trimmed.match(/^[-|:\s]+$/)) {
+                      // Table separator row, continue collecting
+                      continue;
+                    } else if (inTable) {
+                      // End of table
+                      const tableElement = renderTable(tableRows);
+                      if (tableElement) {
+                        processedLines.push(tableElement);
+                      }
+                      inTable = false;
+                      tableRows = [];
+                    }
+                    
+                    // Skip empty lines but keep spacing
+                    if (!trimmed) {
+                      processedLines.push(<div key={idx} className="h-2" />);
+                      continue;
+                    }
+                  
+                    // Detect section headers (markdown headers)
+                    if (trimmed.startsWith('#')) {
+                      const level = trimmed.match(/^#+/)?.[0].length || 1;
+                      const text = trimmed.replace(/^#+\s*/, '');
+                      const HeaderTag = `h${Math.min(level, 6)}` as keyof JSX.IntrinsicElements;
+                      processedLines.push(
+                        <HeaderTag key={idx} className={`font-semibold mt-4 mb-2 text-foreground border-b pb-2 ${
+                          level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : 'text-base'
+                        }`}>
+                          {formatText(text)}
+                        </HeaderTag>
+                      );
+                      continue;
+                    }
+                    
+                    // Detect section headers (other patterns)
+                    if ((trimmed.length < 100 && trimmed === trimmed.toUpperCase() && trimmed.match(/[A-Z]/) && !trimmed.match(/[0-9]/)) ||
+                        trimmed.match(/^[A-Z][^:]*:$/) ||
+                        trimmed.match(/^(Class Overview|Students|Analysis|Report|Summary|Priority|Executive Summary|Performance|Remediation)/i)) {
+                      processedLines.push(
+                        <h3 key={idx} className="text-base font-semibold mt-4 mb-2 text-foreground border-b pb-2">
+                          {formatText(trimmed.replace(/[:]$/, ''))}
+                        </h3>
+                      );
+                      continue;
+                    }
+                    
+                    // Format bullet points
+                    if (trimmed.match(/^[-•*]\s/)) {
+                      processedLines.push(
+                        <div key={idx} className="flex items-start gap-2 ml-2">
+                          <span className="text-primary mt-1">•</span>
+                          <span className="flex-1">{formatText(trimmed.replace(/^[-•*]\s*/, ''))}</span>
+                        </div>
+                      );
+                      continue;
+                    }
+                    
+                    // Format numbered lists
+                    if (trimmed.match(/^\d+[\.\)]\s/)) {
+                      const match = trimmed.match(/^(\d+)[\.\)]\s*(.+)/);
+                      if (match) {
+                        processedLines.push(
+                          <div key={idx} className="flex items-start gap-2 ml-2">
+                            <span className="font-semibold text-primary mt-0.5">{match[1]}.</span>
+                            <span className="flex-1">{formatText(match[2])}</span>
+                          </div>
+                        );
+                      }
+                      continue;
+                    }
+                    
+                    // Format lines with colons (key-value pairs)
+                    if (trimmed.includes(':') && trimmed.length < 200) {
+                      const [key, ...valueParts] = trimmed.split(':');
+                      const value = valueParts.join(':').trim();
+                      if (key.length < 60 && value) {
+                        processedLines.push(
+                          <div key={idx} className="mb-2">
+                            <span className="font-semibold text-foreground">{key}:</span>{' '}
+                            <span>{formatText(value)}</span>
+                          </div>
+                        );
+                        continue;
+                      }
+                    }
+                    
+                    // Format evidence lines (Q: patterns)
+                    if (trimmed.match(/Q\d+:/i)) {
+                      processedLines.push(
+                        <div key={idx} className="ml-4 mb-2 p-2 bg-muted/50 rounded border-l-2 border-l-primary">
+                          {formatText(trimmed)}
+                        </div>
+                      );
+                      continue;
+                    }
+                    
+                    // Regular paragraph
+                    processedLines.push(
+                      <p key={idx} className="mb-2 text-foreground">
+                        {formatText(trimmed)}
+                      </p>
+                    );
+                  }
+
+                  // Render any remaining table
+                  if (inTable && tableRows.length > 0) {
+                    const tableElement = renderTable(tableRows);
+                    if (tableElement) {
+                      processedLines.push(tableElement);
+                    }
+                  }
+
+                  return processedLines;
+                })()}
+              </div>
             </div>
           </ScrollArea>
         </CardContent>

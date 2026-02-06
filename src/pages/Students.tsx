@@ -30,12 +30,31 @@ import { useApp } from '@/contexts/AppContext';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Student } from '@/lib/mockData';
+import { formatAnalysisResult, parseAnalysisText } from '@/lib/analysisParser';
+import { mapAnalysisToStudents } from '@/lib/analysisMapper';
+import { useMemo } from 'react';
 
 export default function Students() {
   const navigate = useNavigate();
-  const { students } = useApp();
+  const { students: baseStudents, analysisResult } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState<string[]>([]);
+
+  // Map analysis results to students
+  const students = useMemo(() => {
+    if (!analysisResult) {
+      return baseStudents;
+    }
+    
+    try {
+      const formattedResult = formatAnalysisResult(analysisResult);
+      const parsed = parseAnalysisText(formattedResult);
+      return mapAnalysisToStudents(parsed, baseStudents);
+    } catch (error) {
+      console.error('Error mapping analysis to students:', error);
+      return baseStudents;
+    }
+  }, [analysisResult, baseStudents]);
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -84,6 +103,11 @@ export default function Students() {
           <h1 className="text-2xl font-semibold">Students</h1>
           <p className="text-muted-foreground">
             View and manage student performance data
+            {analysisResult && (
+              <Badge variant="secondary" className="ml-2">
+                Analysis Active
+              </Badge>
+            )}
           </p>
         </div>
       </div>
