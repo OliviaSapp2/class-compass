@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.scrape-educational-content]
 verify_jwt = false
+
+[functions.tutor-chat]
+verify_jwt = false
