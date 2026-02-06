@@ -1,19 +1,28 @@
-import { Bell, Search, ChevronDown, Play, Loader2 } from 'lucide-react';
+import { Bell, Search, ChevronDown, Play, Loader2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/contexts/AppContext';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnalysisModal } from '@/components/modals/AnalysisModal';
 
 export function AppHeader() {
-  const { selectedClass, setSelectedClass, classes, isAnalyzing } = useApp();
+  const { selectedClass, setSelectedClass, classes, isAnalyzing, setUserRole } = useApp();
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSwitchToStudent = () => {
+    setUserRole('student');
+    navigate('/student/dashboard');
+  };
 
   return (
     <>
@@ -77,9 +86,36 @@ export function AppHeader() {
             </span>
           </Button>
 
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
-            MJ
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
+                  MJ
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">Ms. Johnson</p>
+                  <p className="text-xs text-muted-foreground">teacher@school.edu</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
+                <User className="h-4 w-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Switch Role
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={handleSwitchToStudent}>
+                Switch to Student View
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

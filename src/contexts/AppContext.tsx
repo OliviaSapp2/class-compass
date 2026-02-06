@@ -9,21 +9,42 @@ import {
   dashboardStats as initialStats,
   todoItems as initialTodos
 } from '@/lib/mockData';
+import {
+  StudentProfile,
+  Gap,
+  StudyPlan,
+  StudentProgress,
+  StudentUpload,
+  Assessment,
+  StudyTask,
+  mockStudentProfile,
+  mockGaps,
+  mockStudyPlan,
+  mockProgress,
+  mockStudentUploads,
+  mockUpcomingAssessments,
+} from '@/lib/studentMockData';
+
+export type UserRole = 'teacher' | 'student';
 
 interface AppContextType {
   // Auth state
   isAuthenticated: boolean;
   setIsAuthenticated: (value: boolean) => void;
   
+  // Role management
+  userRole: UserRole;
+  setUserRole: (role: UserRole) => void;
+  
   // Class selection
   selectedClass: Class;
   setSelectedClass: (classItem: Class) => void;
   classes: Class[];
   
-  // Students
+  // Students (teacher view)
   students: Student[];
   
-  // Uploads
+  // Uploads (teacher view)
   uploads: Upload[];
   addUpload: (upload: Upload) => void;
   
@@ -38,17 +59,49 @@ interface AppContextType {
   analysisProgress: number;
   runAnalysis: () => Promise<void>;
   lastAnalysisRun: string | null;
+  
+  // Student-specific state
+  studentProfile: StudentProfile;
+  studentGaps: Gap[];
+  studyPlan: StudyPlan | null;
+  setStudyPlan: (plan: StudyPlan | null) => void;
+  studentProgress: StudentProgress;
+  updateStudentProgress: (updates: Partial<StudentProgress>) => void;
+  studentUploads: StudentUpload[];
+  addStudentUpload: (upload: StudentUpload) => void;
+  upcomingAssessments: Assessment[];
+  
+  // Study plan actions
+  generateStudyPlan: (settings: StudyPlan['settings']) => Promise<void>;
+  completeTask: (taskId: string, reflection?: string) => void;
+  addGapToPlan: (gapId: string) => void;
+  toggleShareWithTeacher: () => void;
+  
+  // Generation state
+  isGeneratingPlan: boolean;
+  planGenerationProgress: number;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>('teacher');
   const [selectedClass, setSelectedClass] = useState<Class>(mockClasses[0]);
   const [uploads, setUploads] = useState<Upload[]>(mockUploads);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [lastAnalysisRun, setLastAnalysisRun] = useState<string | null>(initialStats.lastAnalysisRun);
+
+  // Student state
+  const [studentProfile] = useState<StudentProfile>(mockStudentProfile);
+  const [studentGaps] = useState<Gap[]>(mockGaps);
+  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(mockStudyPlan);
+  const [studentProgress, setStudentProgress] = useState<StudentProgress>(mockProgress);
+  const [studentUploads, setStudentUploads] = useState<StudentUpload[]>(mockStudentUploads);
+  const [upcomingAssessments] = useState<Assessment[]>(mockUpcomingAssessments);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const [planGenerationProgress, setPlanGenerationProgress] = useState(0);
 
   const addUpload = (upload: Upload) => {
     setUploads(prev => [upload, ...prev]);
@@ -58,7 +111,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     
-    // Simulate analysis progress
     for (let i = 0; i <= 100; i += 10) {
       await new Promise(resolve => setTimeout(resolve, 300));
       setAnalysisProgress(i);
@@ -69,10 +121,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAnalysisProgress(0);
   };
 
+  const addStudentUpload = (upload: StudentUpload) => {
+    setStudentUploads(prev => [upload, ...prev]);
+  };
+
+  const updateStudentProgress = (updates: Partial<StudentProgress>) => {
+    setStudentProgress(prev => ({ ...prev, ...updates }));
+  };
+
+  const generateStudyPlan = async (settings: StudyPlan['settings']) => {
+    setIsGeneratingPlan(true);
+    setPlanGenerationProgress(0);
+    
+    // Simulate plan generation
+    for (let i = 0; i <= 100; i += 5) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      setPlanGenerationProgress(i);
+    }
+    
+    // Create a new plan based on settings
+    const newPlan: StudyPlan = {
+      ...mockStudyPlan,
+      id: `plan-${Date.now()}`,
+      generatedAt: new Date().toISOString(),
+      settings,
+      status: 'active',
+    };
+    
+    setStudyPlan(newPlan);
+    setIsGeneratingPlan(false);
+    setPlanGenerationProgress(0);
+  };
+
+  const completeTask = (taskId: string, reflection?: string) => {
+    if (!studyPlan) return;
+    
+    const updatedWeeks = studyPlan.weeks.map(week => ({
+      ...week,
+      days: week.days.map(day => ({
+        ...day,
+        tasks: day.tasks.map(task => 
+          task.id === taskId 
+            ? { ...task, status: 'completed' as const, completedAt: new Date().toISOString(), reflection } 
+            : task
+        ),
+        isCompleted: day.tasks.every(t => t.id === taskId || t.status === 'completed'),
+      })),
+    }));
+    
+    setStudyPlan({ ...studyPlan, weeks: updatedWeeks });
+    setStudentProgress(prev => ({
+      ...prev,
+      completedTasks: prev.completedTasks + 1,
+    }));
+  };
+
+  const addGapToPlan = (gapId: string) => {
+    // Mock: In real app, this would add the gap topic to the study plan
+    console.log('Adding gap to plan:', gapId);
+  };
+
+  const toggleShareWithTeacher = () => {
+    if (!studyPlan) return;
+    setStudyPlan({ ...studyPlan, shareWithTeacher: !studyPlan.shareWithTeacher });
+  };
+
   return (
     <AppContext.Provider value={{
       isAuthenticated,
       setIsAuthenticated,
+      userRole,
+      setUserRole,
       selectedClass,
       setSelectedClass,
       classes: mockClasses,
@@ -85,6 +204,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       analysisProgress,
       runAnalysis,
       lastAnalysisRun,
+      studentProfile,
+      studentGaps,
+      studyPlan,
+      setStudyPlan,
+      studentProgress,
+      updateStudentProgress,
+      studentUploads,
+      addStudentUpload,
+      upcomingAssessments,
+      generateStudyPlan,
+      completeTask,
+      addGapToPlan,
+      toggleShareWithTeacher,
+      isGeneratingPlan,
+      planGenerationProgress,
     }}>
       {children}
     </AppContext.Provider>
