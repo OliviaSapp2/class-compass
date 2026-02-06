@@ -159,6 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 300);
     
     try {
+      // Include uploaded assessment files and upcoming assessments in the generation
       const result = await generateAIStudyPlan({
         gaps: studentGaps,
         settings,
@@ -167,6 +168,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           grade: studentProfile.grade,
           goals: studentProfile.goals,
         },
+        uploads: studentUploads,
+        assessments: upcomingAssessments,
       });
       
       clearInterval(progressInterval);

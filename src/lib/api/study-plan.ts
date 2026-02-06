@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Gap, StudyPlan, StudyPlanSettings } from '@/lib/studentMockData';
+import { Gap, StudyPlan, StudyPlanSettings, StudentUpload, Assessment } from '@/lib/studentMockData';
 
 interface GenerateStudyPlanParams {
   gaps: Gap[];
@@ -9,6 +9,8 @@ interface GenerateStudyPlanParams {
     grade: string;
     goals: string[];
   };
+  uploads?: StudentUpload[];
+  assessments?: Assessment[];
 }
 
 interface GenerateStudyPlanResponse {
@@ -21,6 +23,8 @@ export async function generateAIStudyPlan(
   params: GenerateStudyPlanParams
 ): Promise<GenerateStudyPlanResponse> {
   console.log('Calling generate-study-plan edge function...');
+  console.log('Uploads included:', params.uploads?.length || 0);
+  console.log('Assessments included:', params.assessments?.length || 0);
   
   const { data, error } = await supabase.functions.invoke('generate-study-plan', {
     body: params,
