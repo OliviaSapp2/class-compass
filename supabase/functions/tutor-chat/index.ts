@@ -85,16 +85,47 @@ Deno.serve(async (req) => {
       body: JSON.stringify(stackPayload),
     });
 
+    // Get response as text first to check if it's valid JSON
+    const responseText = await response.text();
+    console.log('Stack AI response status:', response.status);
+    console.log('Stack AI response preview:', responseText.substring(0, 200));
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Stack AI error:', response.status, errorText);
+      console.error('Stack AI error:', response.status, responseText.substring(0, 500));
       return new Response(
-        JSON.stringify({ success: false, error: `Tutor service error: ${response.status}` }),
+        JSON.stringify({ 
+          success: false, 
+          error: `Tutor service error (${response.status}). Please verify your Stack AI flow URL is correct.` 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
+    // Check if response is HTML (error page) instead of JSON
+    if (responseText.trim().startsWith('<') || responseText.trim().startsWith('<!DOCTYPE')) {
+      console.error('Stack AI returned HTML instead of JSON. URL may be incorrect.');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Stack AI returned an error page. Please verify your STACKAI_TUTOR_FLOW_URL is correct.' 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse the JSON response
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Stack AI response:', parseError);
+      console.error('Response was:', responseText.substring(0, 500));
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid response from Stack AI' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('Stack AI tutor response received');
 
     // Stack AI typically returns response in "out-0" or similar field
