@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { toast } from 'sonner';
 import { 
   Class, 
   Student, 
@@ -19,11 +20,11 @@ import {
   StudyTask,
   mockStudentProfile,
   mockGaps,
-  mockStudyPlan,
   mockProgress,
   mockStudentUploads,
   mockUpcomingAssessments,
 } from '@/lib/studentMockData';
+import { generateAIStudyPlan } from '@/lib/api/study-plan';
 
 export type UserRole = 'teacher' | 'student';
 
@@ -96,7 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Student state
   const [studentProfile] = useState<StudentProfile>(mockStudentProfile);
   const [studentGaps] = useState<Gap[]>(mockGaps);
-  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(mockStudyPlan);
+  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
   const [studentProgress, setStudentProgress] = useState<StudentProgress>(mockProgress);
   const [studentUploads, setStudentUploads] = useState<StudentUpload[]>(mockStudentUploads);
   const [upcomingAssessments] = useState<Assessment[]>(mockUpcomingAssessments);
@@ -152,24 +153,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsGeneratingPlan(true);
     setPlanGenerationProgress(0);
     
-    // Simulate plan generation
-    for (let i = 0; i <= 100; i += 5) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setPlanGenerationProgress(i);
+    // Start progress animation
+    const progressInterval = setInterval(() => {
+      setPlanGenerationProgress(prev => Math.min(prev + 3, 90));
+    }, 300);
+    
+    try {
+      const result = await generateAIStudyPlan({
+        gaps: studentGaps,
+        settings,
+        studentProfile: {
+          name: studentProfile.name,
+          grade: studentProfile.grade,
+          goals: studentProfile.goals,
+        },
+      });
+      
+      clearInterval(progressInterval);
+      setPlanGenerationProgress(100);
+      
+      if (result.success && result.studyPlan) {
+        setStudyPlan(result.studyPlan);
+        toast.success('Study plan generated successfully!');
+      } else {
+        console.error('Failed to generate plan:', result.error);
+        toast.error(result.error || 'Failed to generate study plan');
+      }
+    } catch (error) {
+      clearInterval(progressInterval);
+      console.error('Error generating study plan:', error);
+      toast.error('Failed to generate study plan. Please try again.');
+    } finally {
+      setIsGeneratingPlan(false);
+      setPlanGenerationProgress(0);
     }
-    
-    // Create a new plan based on settings
-    const newPlan: StudyPlan = {
-      ...mockStudyPlan,
-      id: `plan-${Date.now()}`,
-      generatedAt: new Date().toISOString(),
-      settings,
-      status: 'active',
-    };
-    
-    setStudyPlan(newPlan);
-    setIsGeneratingPlan(false);
-    setPlanGenerationProgress(0);
   };
 
   const completeTask = (taskId: string, reflection?: string) => {
