@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Loader2, CheckCircle, Sparkles, Calendar, Clock, Target } from 'lucide-react';
+import { Loader2, CheckCircle, Sparkles, Calendar, Clock, Target, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { StudyPlan } from '@/lib/studentMockData';
+import { useApp } from '@/contexts/AppContext';
 
 interface PlanGenerationModalProps {
   open: boolean;
@@ -23,6 +25,7 @@ export function PlanGenerationModal({
   isGenerating,
   progress 
 }: PlanGenerationModalProps) {
+  const { studentUploads, upcomingAssessments, studentGaps } = useApp();
   const [minutesPerDay, setMinutesPerDay] = useState(30);
   const [daysPerWeek, setDaysPerWeek] = useState(5);
   const [priority, setPriority] = useState<'grades' | 'mastery' | 'upcoming_test'>('mastery');
@@ -71,6 +74,30 @@ export function PlanGenerationModal({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Data sources info */}
+          {(studentUploads.length > 0 || studentGaps.length > 0) && (
+            <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
+              {studentGaps.length > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <Target className="h-3 w-3" />
+                  {studentGaps.length} learning gaps
+                </Badge>
+              )}
+              {studentUploads.length > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <FileText className="h-3 w-3" />
+                  {studentUploads.length} uploaded files
+                </Badge>
+              )}
+              {upcomingAssessments.length > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {upcomingAssessments.length} upcoming tests
+                </Badge>
+              )}
+            </div>
+          )}
+
           {/* Time per day */}
           <div className="space-y-3">
             <Label className="flex items-center gap-2">
