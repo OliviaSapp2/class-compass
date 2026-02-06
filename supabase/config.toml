@@ -1,1 +1,4 @@
 project_id = "drcxqjcpezxqlrfmzshq"
+
+[functions.agent-analyze]
+verify_jwt = false

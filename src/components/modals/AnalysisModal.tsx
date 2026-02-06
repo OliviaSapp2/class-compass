@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useApp } from '@/contexts/AppContext';
 import { FileText, Users, CheckCircle2, Loader2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface AnalysisModalProps {
   open: boolean;
@@ -30,8 +31,20 @@ export function AnalysisModal({ open, onOpenChange }: AnalysisModalProps) {
   const studentWorkCount = uploads.filter(u => u.type === 'student_work').length;
 
   const handleRunAnalysis = async () => {
-    await runAnalysis();
-    onOpenChange(false);
+    try {
+      await runAnalysis();
+      toast({
+        title: 'Analysis Complete',
+        description: 'Class analysis has been completed successfully.',
+      });
+      onOpenChange(false);
+    } catch (error) {
+      toast({
+        title: 'Analysis Failed',
+        description: error instanceof Error ? error.message : 'Failed to run analysis',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
