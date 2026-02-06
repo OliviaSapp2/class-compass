@@ -508,6 +508,311 @@ export const mockUpcomingAssessments: Assessment[] = [
   { id: 'a3', name: 'Decimal Checkpoint', subject: 'Math', date: '2024-02-02', topics: ['Converting Fractions to Decimals', 'Decimal Operations'] },
 ];
 
+// ==========================================
+// TUTOR INTERFACES AND MOCK DATA
+// ==========================================
+
+export type SupportedLanguage = 
+  | 'en' | 'es' | 'zh' | 'ar' | 'hi' | 'pt' | 'fr' | 'de' | 'ja' | 'ko' | 'ru' | 'vi';
+
+export interface LanguageOption {
+  code: SupportedLanguage;
+  name: string;
+  nativeName: string;
+}
+
+export const supportedLanguages: LanguageOption[] = [
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español' },
+  { code: 'zh', name: 'Chinese', nativeName: '中文' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
+  { code: 'fr', name: 'French', nativeName: 'Français' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt' },
+];
+
+export interface TutorMessage {
+  id: string;
+  role: 'user' | 'tutor';
+  content: string;
+  translatedContent?: string; // English translation if bilingual mode
+  timestamp: string;
+  audioUrl?: string; // Mock audio URL for playback
+  phase?: TutorPhase;
+  quickReplies?: string[];
+  practiceQuestion?: TutorPracticeQuestion;
+}
+
+export type TutorPhase = 
+  | 'greeting' 
+  | 'topic_confirm' 
+  | 'find_misconception' 
+  | 'micro_lesson' 
+  | 'practice' 
+  | 'outcome';
+
+export interface TutorPracticeQuestion {
+  question: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+
+export interface TutorSession {
+  id: string;
+  studentId: string;
+  topic: string;
+  topicPath: string;
+  language: SupportedLanguage;
+  bilingualMode: boolean;
+  messages: TutorMessage[];
+  detectedMisconceptions: string[];
+  confidence: number;
+  startedAt: string;
+  endedAt?: string;
+}
+
+export interface TutorSessionSummary {
+  sessionId: string;
+  topic: string;
+  struggledWith: string[];
+  recommendedNextSteps: string[];
+  linkedTaskIds: string[];
+  sharedWithTeacher: boolean;
+}
+
+export interface StudentLanguagePreferences {
+  preferredLanguage: SupportedLanguage;
+  bilingualModeDefault: boolean;
+  translateForTeachers: boolean;
+}
+
+// Mock tutor responses by topic and phase
+export const mockTutorResponses: Record<string, Record<TutorPhase, TutorMessage>> = {
+  'Multiplying Fractions': {
+    greeting: {
+      id: 'msg-greeting',
+      role: 'tutor',
+      content: "Hi there! 👋 I'm here to help you with math. Let's figure this out together—no pressure!",
+      translatedContent: "Hi there! 👋 I'm here to help you with math. Let's figure this out together—no pressure!",
+      timestamp: new Date().toISOString(),
+      phase: 'greeting',
+    },
+    topic_confirm: {
+      id: 'msg-confirm',
+      role: 'tutor',
+      content: "It looks like you want to work on **Multiplying Fractions**. Is that right, or would you like help with something else?",
+      translatedContent: "It looks like you want to work on **Multiplying Fractions**. Is that right, or would you like help with something else?",
+      timestamp: new Date().toISOString(),
+      phase: 'topic_confirm',
+      quickReplies: ["Yes, that's right!", "I need help with something else"],
+    },
+    find_misconception: {
+      id: 'msg-misconception',
+      role: 'tutor',
+      content: "Great! Let me understand where you're getting stuck. Which of these sounds most like you?",
+      translatedContent: "Great! Let me understand where you're getting stuck. Which of these sounds most like you?",
+      timestamp: new Date().toISOString(),
+      phase: 'find_misconception',
+      quickReplies: [
+        "I don't know where to start",
+        "I forget to multiply both parts",
+        "I get confused with simplifying",
+        "Word problems are hard",
+      ],
+    },
+    micro_lesson: {
+      id: 'msg-lesson',
+      role: 'tutor',
+      content: `**Here's the key idea:**
+
+When multiplying fractions, you multiply straight across:
+- Numerator × Numerator = New Numerator
+- Denominator × Denominator = New Denominator
+
+**Example:** 
+2/3 × 1/4 = (2×1)/(3×4) = 2/12 = **1/6**
+
+💡 **Pro tip:** Always simplify at the end! 2/12 becomes 1/6 when you divide both by 2.`,
+      translatedContent: `**Here's the key idea:**
+
+When multiplying fractions, you multiply straight across:
+- Numerator × Numerator = New Numerator
+- Denominator × Denominator = New Denominator
+
+**Example:** 
+2/3 × 1/4 = (2×1)/(3×4) = 2/12 = **1/6**
+
+💡 **Pro tip:** Always simplify at the end! 2/12 becomes 1/6 when you divide both by 2.`,
+      timestamp: new Date().toISOString(),
+      phase: 'micro_lesson',
+    },
+    practice: {
+      id: 'msg-practice',
+      role: 'tutor',
+      content: "Let's try one together! What is **1/2 × 2/5**?",
+      translatedContent: "Let's try one together! What is **1/2 × 2/5**?",
+      timestamp: new Date().toISOString(),
+      phase: 'practice',
+      practiceQuestion: {
+        question: "What is 1/2 × 2/5?",
+        options: ["2/10 (or 1/5)", "3/7", "1/10", "2/7"],
+        correctAnswer: "2/10 (or 1/5)",
+        explanation: "1×2=2 for the numerator, 2×5=10 for the denominator. 2/10 simplifies to 1/5!",
+      },
+    },
+    outcome: {
+      id: 'msg-outcome',
+      role: 'tutor',
+      content: "Nice work! 🎉 You got it! Would you like to add this to your study plan for more practice, or try another problem?",
+      translatedContent: "Nice work! 🎉 You got it! Would you like to add this to your study plan for more practice, or try another problem?",
+      timestamp: new Date().toISOString(),
+      phase: 'outcome',
+      quickReplies: ["Add to Study Plan", "Try another problem", "I'm still confused"],
+    },
+  },
+  'Dividing Fractions': {
+    greeting: {
+      id: 'msg-greeting',
+      role: 'tutor',
+      content: "Hi! 👋 Ready to tackle fractions? I've got your back!",
+      translatedContent: "Hi! 👋 Ready to tackle fractions? I've got your back!",
+      timestamp: new Date().toISOString(),
+      phase: 'greeting',
+    },
+    topic_confirm: {
+      id: 'msg-confirm',
+      role: 'tutor',
+      content: "Looks like **Dividing Fractions** is giving you trouble. Should we work on that?",
+      translatedContent: "Looks like **Dividing Fractions** is giving you trouble. Should we work on that?",
+      timestamp: new Date().toISOString(),
+      phase: 'topic_confirm',
+      quickReplies: ["Yes, let's do it!", "Actually, something else"],
+    },
+    find_misconception: {
+      id: 'msg-misconception',
+      role: 'tutor',
+      content: "What part trips you up the most?",
+      translatedContent: "What part trips you up the most?",
+      timestamp: new Date().toISOString(),
+      phase: 'find_misconception',
+      quickReplies: [
+        "I forget to flip the fraction",
+        "I flip the wrong one",
+        "Mixed numbers confuse me",
+        "I don't know when to use it",
+      ],
+    },
+    micro_lesson: {
+      id: 'msg-lesson',
+      role: 'tutor',
+      content: `**The secret: Keep-Change-Flip!**
+
+1. **Keep** the first fraction the same
+2. **Change** the ÷ to ×
+3. **Flip** the second fraction
+
+**Example:**
+3/4 ÷ 1/2 → 3/4 × 2/1 = 6/4 = **1 1/2**
+
+Remember: Only flip the second fraction!`,
+      translatedContent: `**The secret: Keep-Change-Flip!**
+
+1. **Keep** the first fraction the same
+2. **Change** the ÷ to ×
+3. **Flip** the second fraction
+
+**Example:**
+3/4 ÷ 1/2 → 3/4 × 2/1 = 6/4 = **1 1/2**
+
+Remember: Only flip the second fraction!`,
+      timestamp: new Date().toISOString(),
+      phase: 'micro_lesson',
+    },
+    practice: {
+      id: 'msg-practice',
+      role: 'tutor',
+      content: "Your turn! What is **2/3 ÷ 1/6**?",
+      translatedContent: "Your turn! What is **2/3 ÷ 1/6**?",
+      timestamp: new Date().toISOString(),
+      phase: 'practice',
+      practiceQuestion: {
+        question: "What is 2/3 ÷ 1/6?",
+        options: ["4", "2/18", "12/3 (or 4)", "1/9"],
+        correctAnswer: "12/3 (or 4)",
+        explanation: "2/3 × 6/1 = 12/3 = 4. Great use of Keep-Change-Flip!",
+      },
+    },
+    outcome: {
+      id: 'msg-outcome',
+      role: 'tutor',
+      content: "You're getting the hang of it! 🌟 Want to practice more or add this to your plan?",
+      translatedContent: "You're getting the hang of it! 🌟 Want to practice more or add this to your plan?",
+      timestamp: new Date().toISOString(),
+      phase: 'outcome',
+      quickReplies: ["Add to Study Plan", "More practice please", "Mark as still confusing"],
+    },
+  },
+};
+
+// Default tutor responses for topics without specific content
+export const defaultTutorResponses: Record<TutorPhase, TutorMessage> = {
+  greeting: {
+    id: 'msg-greeting',
+    role: 'tutor',
+    content: "Hi! 👋 I'm your AI tutor. Let's work through this together!",
+    timestamp: new Date().toISOString(),
+    phase: 'greeting',
+  },
+  topic_confirm: {
+    id: 'msg-confirm',
+    role: 'tutor',
+    content: "What topic would you like help with today?",
+    timestamp: new Date().toISOString(),
+    phase: 'topic_confirm',
+  },
+  find_misconception: {
+    id: 'msg-misconception',
+    role: 'tutor',
+    content: "What part is giving you the most trouble?",
+    timestamp: new Date().toISOString(),
+    phase: 'find_misconception',
+    quickReplies: [
+      "I don't understand the concept",
+      "I make calculation errors",
+      "Word problems are confusing",
+      "I forget the steps",
+    ],
+  },
+  micro_lesson: {
+    id: 'msg-lesson',
+    role: 'tutor',
+    content: "Let me break this down for you step by step...",
+    timestamp: new Date().toISOString(),
+    phase: 'micro_lesson',
+  },
+  practice: {
+    id: 'msg-practice',
+    role: 'tutor',
+    content: "Let's practice together!",
+    timestamp: new Date().toISOString(),
+    phase: 'practice',
+  },
+  outcome: {
+    id: 'msg-outcome',
+    role: 'tutor',
+    content: "Great job working through this! What would you like to do next?",
+    timestamp: new Date().toISOString(),
+    phase: 'outcome',
+    quickReplies: ["Add to Study Plan", "Try another topic", "I need more help"],
+  },
+};
+
 // Helper functions
 export function getNextTask(plan: StudyPlan): StudyTask | null {
   for (const week of plan.weeks) {
@@ -535,4 +840,12 @@ export function formatTopicPath(path: string): { subject: string; unit: string; 
     unit: parts[1] || '',
     topic: parts[2] || '',
   };
+}
+
+export function getTutorResponse(topic: string, phase: TutorPhase): TutorMessage {
+  const topicResponses = mockTutorResponses[topic];
+  if (topicResponses && topicResponses[phase]) {
+    return { ...topicResponses[phase], id: `msg-${Date.now()}`, timestamp: new Date().toISOString() };
+  }
+  return { ...defaultTutorResponses[phase], id: `msg-${Date.now()}`, timestamp: new Date().toISOString() };
 }

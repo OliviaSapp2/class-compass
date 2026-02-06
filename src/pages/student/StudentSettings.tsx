@@ -7,7 +7,9 @@ import {
   Clock, 
   Shield,
   ChevronRight,
-  Save
+  Save,
+  Globe,
+  Languages
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/contexts/AppContext';
+import { SupportedLanguage, supportedLanguages } from '@/lib/studentMockData';
 import { toast } from 'sonner';
 
 export default function StudentSettings() {
@@ -30,6 +33,12 @@ export default function StudentSettings() {
   const [name, setName] = useState(studentProfile.name);
   const [email, setEmail] = useState(studentProfile.email);
   const [dailyGoal, setDailyGoal] = useState('30');
+  
+  // Language preferences
+  const [preferredLanguage, setPreferredLanguage] = useState<SupportedLanguage>('en');
+  const [bilingualModeDefault, setBilingualModeDefault] = useState(false);
+  const [translateForTeachers, setTranslateForTeachers] = useState(true);
+  
   const [notifications, setNotifications] = useState({
     studyReminders: true,
     progressUpdates: true,
@@ -91,6 +100,72 @@ export default function StudentSettings() {
             <p className="text-xs text-muted-foreground">
               Contact your teacher to change classes
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Language & Tutor Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Languages className="h-5 w-5 text-muted-foreground" />
+            Language & Tutor Preferences
+          </CardTitle>
+          <CardDescription>
+            Configure how the AI Tutor communicates with you
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Preferred Language</Label>
+            <Select value={preferredLanguage} onValueChange={(val) => setPreferredLanguage(val as SupportedLanguage)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {supportedLanguages.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>
+                    <div className="flex items-center gap-2">
+                      <span>{lang.name}</span>
+                      <span className="text-muted-foreground text-xs">({lang.nativeName})</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              The AI Tutor will explain concepts in this language
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Bilingual Mode (Default)</Label>
+              <p className="text-sm text-muted-foreground">
+                Show English translation alongside explanations
+              </p>
+            </div>
+            <Switch
+              checked={bilingualModeDefault}
+              onCheckedChange={setBilingualModeDefault}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Translate Messages for Teachers</Label>
+              <p className="text-sm text-muted-foreground">
+                Automatically translate your tutor messages to English when shared
+              </p>
+            </div>
+            <Switch
+              checked={translateForTeachers}
+              onCheckedChange={setTranslateForTeachers}
+            />
           </div>
         </CardContent>
       </Card>

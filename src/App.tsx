@@ -24,6 +24,7 @@ import StudentStudyPlan from "./pages/student/StudentStudyPlan";
 import StudentUploads from "./pages/student/StudentUploads";
 import StudentProgress from "./pages/student/StudentProgress";
 import StudentSettings from "./pages/student/StudentSettings";
+import StudentTutor from "./pages/student/StudentTutor";
 
 const queryClient = new QueryClient();
 
@@ -85,6 +86,7 @@ function AppRoutes() {
         <Route path="study-plan" element={<StudentStudyPlan />} />
         <Route path="uploads" element={<StudentUploads />} />
         <Route path="progress" element={<StudentProgress />} />
+        <Route path="tutor" element={<StudentTutor />} />
         <Route path="settings" element={<StudentSettings />} />
       </Route>
 
