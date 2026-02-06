@@ -12,10 +12,10 @@ Deno.serve(async (req) => {
 
     // Get Stack AI credentials
     const apiKey = Deno.env.get('STACKAI_API_KEY')
-    const baseUrl = Deno.env.get('STACKAI_BASE_URL')
-    const flowId = Deno.env.get('STACKAI_ANALYZE_FLOW_ID')
+    // Full URL to Stack AI workflow (e.g., https://api.stack-ai.com/inference/v0/run/{org_id}/{flow_id})
+    const stackUrl = Deno.env.get('STACKAI_ANALYZE_FLOW_URL')
 
-    if (!apiKey || !baseUrl || !flowId) {
+    if (!apiKey || !stackUrl) {
       console.error('Missing Stack AI configuration')
       return new Response(
         JSON.stringify({ ok: false, error: 'Stack AI not configured' }),
@@ -40,7 +40,6 @@ Deno.serve(async (req) => {
     }
 
     // Call Stack AI
-    const stackUrl = `${baseUrl}/${flowId}`
     console.log('Calling Stack AI:', stackUrl)
 
     const stackResponse = await fetch(stackUrl, {
