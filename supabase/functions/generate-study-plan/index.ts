@@ -17,11 +17,28 @@ interface Gap {
   evidence: { type: string; name: string; date: string; score?: string; detail: string }[];
 }
 
+interface StudentUpload {
+  id: string;
+  fileName: string;
+  fileSize: string;
+  category: 'lecture_notes' | 'study_guide' | 'practice_worksheet' | 'wrong_answers';
+  status: 'uploaded' | 'processing' | 'analyzed';
+  uploadedAt: string;
+}
+
 interface StudyPlanSettings {
   minutesPerDay: number;
   daysPerWeek: number;
   priority: 'grades' | 'mastery' | 'upcoming_test';
   difficulty: 'gentle' | 'normal' | 'intensive';
+}
+
+interface Assessment {
+  id: string;
+  name: string;
+  subject: string;
+  date: string;
+  topics: string[];
 }
 
 Deno.serve(async (req) => {
@@ -39,21 +56,51 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { gaps, settings, studentProfile } = await req.json() as {
+    const { gaps, settings, studentProfile, uploads, assessments } = await req.json() as {
       gaps: Gap[];
       settings: StudyPlanSettings;
       studentProfile: { name: string; grade: string; goals: string[] };
+      uploads?: StudentUpload[];
+      assessments?: Assessment[];
     };
 
     console.log('Generating study plan for:', studentProfile.name);
     console.log('Gaps count:', gaps.length);
+    console.log('Uploads count:', uploads?.length || 0);
+    console.log('Assessments count:', assessments?.length || 0);
     console.log('Settings:', settings);
+
+    // Build assessment files context
+    const uploadsContext = uploads && uploads.length > 0 
+      ? `\nUPLOADED ASSESSMENT FILES:\n${uploads.map(u => {
+          const categoryLabel = {
+            'lecture_notes': 'Lecture Notes',
+            'study_guide': 'Study Guide', 
+            'practice_worksheet': 'Practice Worksheet',
+            'wrong_answers': 'Questions Student Got Wrong'
+          }[u.category] || u.category;
+          return `- ${u.fileName} (${categoryLabel}) - ${u.status === 'analyzed' ? 'Analyzed' : 'Processing'}`;
+        }).join('\n')}`
+      : '';
+
+    // Build upcoming assessments context
+    const assessmentsContext = assessments && assessments.length > 0
+      ? `\nUPCOMING ASSESSMENTS:\n${assessments.map(a => 
+          `- ${a.name} on ${a.date}: Topics - ${a.topics.join(', ')}`
+        ).join('\n')}`
+      : '';
 
     // Build a detailed prompt for the AI
     const systemPrompt = `You are an expert educational tutor AI specializing in creating personalized study plans for middle school students. 
-You analyze learning gaps, test scores, and historical performance to create actionable, age-appropriate study schedules.
+You analyze learning gaps, test scores, uploaded assessment files, and historical performance to create actionable, age-appropriate study schedules.
 Your plans should be encouraging, realistic, and break complex topics into small digestible chunks.
-Focus on addressing misconceptions and building foundational understanding before advancing.`;
+Focus on addressing misconceptions and building foundational understanding before advancing.
+
+When assessment files are provided (like practice worksheets, wrong answers, or study guides), use them to:
+1. Identify specific problem areas the student is struggling with
+2. Tailor practice questions to reinforce weak concepts
+3. Suggest resources that complement the uploaded materials
+4. Prioritize topics from "Questions I Got Wrong" documents`;
 
     const gapsDescription = gaps.map(g => `
 - Topic: ${g.topic} (${g.topicPath})
@@ -70,6 +117,8 @@ Student's Goals: ${studentProfile.goals.join(', ')}
 
 LEARNING GAPS TO ADDRESS:
 ${gapsDescription}
+${uploadsContext}
+${assessmentsContext}
 
 STUDY PLAN SETTINGS:
 - Time available: ${settings.minutesPerDay} minutes per day
@@ -77,11 +126,16 @@ STUDY PLAN SETTINGS:
 - Priority: ${settings.priority === 'grades' ? 'Improve grades quickly' : settings.priority === 'mastery' ? 'Deep understanding' : 'Prepare for upcoming test'}
 - Pace: ${settings.difficulty}
 
+${uploads && uploads.some(u => u.category === 'wrong_answers') 
+  ? 'IMPORTANT: The student has uploaded "Questions I Got Wrong" documents. Prioritize addressing these specific problem areas in the study plan.' 
+  : ''}
+
 Create a 2-week study plan with daily tasks. Each task should:
 1. Have a clear, specific micro-goal
 2. Include estimated time (fitting within daily limit)
 3. Suggest specific resources (videos, articles, practice problems)
 4. Include 2-3 practice questions with hints and explanations
+5. Reference any relevant uploaded materials when applicable
 
 IMPORTANT: Respond with a valid JSON object following this exact structure:
 {
