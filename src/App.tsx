@@ -11,6 +11,7 @@ import Uploads from "./pages/Uploads";
 import Students from "./pages/Students";
 import StudentDetail from "./pages/StudentDetail";
 import ClassInsights from "./pages/ClassInsights";
+import Resources from "./pages/Resources";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="students" element={<Students />} />
         <Route path="students/:id" element={<StudentDetail />} />
         <Route path="insights" element={<ClassInsights />} />
+        <Route path="resources" element={<Resources />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
       </Route>
