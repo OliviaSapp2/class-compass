@@ -1,8 +1,8 @@
-import { AlertTriangle, TrendingUp, ChevronRight, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, ChevronRight, Plus, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Gap } from '@/lib/studentMockData';
 import { cn } from '@/lib/utils';
 
@@ -11,9 +11,12 @@ interface TopicCardProps {
   onViewDetails: (gap: Gap) => void;
   onAddToPlan: (gapId: string) => void;
   showAddToPlan?: boolean;
+  showAskTutor?: boolean;
 }
 
-export function TopicCard({ gap, onViewDetails, onAddToPlan, showAddToPlan = true }: TopicCardProps) {
+export function TopicCard({ gap, onViewDetails, onAddToPlan, showAddToPlan = true, showAskTutor = true }: TopicCardProps) {
+  const navigate = useNavigate();
+
   const getRiskColor = (level: Gap['riskLevel']) => {
     switch (level) {
       case 'high': return 'bg-destructive/10 text-destructive border-destructive/20';
@@ -34,6 +37,11 @@ export function TopicCard({ gap, onViewDetails, onAddToPlan, showAddToPlan = tru
     if (mastery >= 70) return 'bg-emerald-500';
     if (mastery >= 50) return 'bg-amber-500';
     return 'bg-destructive';
+  };
+
+  const handleAskTutor = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/student/tutor?topic=${gap.id}`);
   };
 
   const confidenceBadge = getConfidenceBadge(gap.confidence);
@@ -105,6 +113,17 @@ export function TopicCard({ gap, onViewDetails, onAddToPlan, showAddToPlan = tru
               Details
               <ChevronRight className="h-4 w-4" />
             </Button>
+            {showAskTutor && (
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-1"
+                onClick={handleAskTutor}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Ask Tutor
+              </Button>
+            )}
             {showAddToPlan && (
               <Button
                 variant="outline"

@@ -7,7 +7,8 @@ import {
   TrendingUp, 
   Settings,
   GraduationCap,
-  LogOut
+  LogOut,
+  MessageSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
@@ -16,6 +17,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/student/dashboard' },
   { icon: Target, label: 'My Gaps', path: '/student/gaps' },
   { icon: BookOpen, label: 'Study Plan', path: '/student/study-plan' },
+  { icon: MessageSquare, label: 'Tutor Chat', path: '/student/tutor' },
   { icon: Upload, label: 'Uploads', path: '/student/uploads' },
   { icon: TrendingUp, label: 'Progress', path: '/student/progress' },
 ];
