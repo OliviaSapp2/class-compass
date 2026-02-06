@@ -1,5 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.2'
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -11,32 +9,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify authentication
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ ok: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    )
-
-    const token = authHeader.replace('Bearer ', '')
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token)
-    if (claimsError || !claimsData?.claims) {
-      console.error('Auth error:', claimsError)
-      return new Response(
-        JSON.stringify({ ok: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const userId = claimsData.claims.sub
 
     // Get Stack AI credentials
     const apiKey = Deno.env.get('STACKAI_API_KEY')
@@ -52,15 +24,15 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { prompt, class_id, student_ids, upload_refs } = await req.json()
+    const { prompt, class_id, student_ids, upload_refs, user_id } = await req.json()
 
-    console.log('Analyze request:', { userId, class_id, student_ids: student_ids?.length, upload_refs: upload_refs?.length })
+    console.log('Analyze request:', { user_id, class_id, student_ids: student_ids?.length, upload_refs: upload_refs?.length })
 
     // Map to Stack AI input format
     const stackPayload = {
       'in-0': JSON.stringify({
         prompt: prompt || 'Analyze student performance',
-        user_id: userId,
+        user_id,
         class_id,
         student_ids,
         upload_refs,
