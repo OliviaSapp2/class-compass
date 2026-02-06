@@ -56,6 +56,45 @@ export type Database = {
         }
         Relationships: []
       }
+      student_uploads: {
+        Row: {
+          analysis_result: Json | null
+          analyzed_at: string | null
+          category: string
+          file_name: string
+          file_path: string
+          file_size: string
+          id: string
+          status: string
+          student_id: string
+          uploaded_at: string
+        }
+        Insert: {
+          analysis_result?: Json | null
+          analyzed_at?: string | null
+          category: string
+          file_name: string
+          file_path: string
+          file_size: string
+          id?: string
+          status?: string
+          student_id: string
+          uploaded_at?: string
+        }
+        Update: {
+          analysis_result?: Json | null
+          analyzed_at?: string | null
+          category?: string
+          file_name?: string
+          file_path?: string
+          file_size?: string
+          id?: string
+          status?: string
+          student_id?: string
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

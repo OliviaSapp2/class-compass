@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Upload, 
   FileText, 
@@ -30,16 +30,34 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/contexts/AppContext';
 import { StudentUpload } from '@/lib/studentMockData';
+import { uploadStudentFile, fetchStudentUploads } from '@/lib/api/student-uploads';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type UploadCategory = StudentUpload['category'];
 
 export default function StudentUploads() {
-  const { studentUploads, addStudentUpload } = useApp();
+  const { studentUploads, addStudentUpload, setStudentUploads } = useApp();
   const [isDragging, setIsDragging] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<{ file: File; category: UploadCategory }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load uploads from database on mount
+  useEffect(() => {
+    loadUploads();
+  }, []);
+
+  const loadUploads = async () => {
+    setIsLoading(true);
+    const result = await fetchStudentUploads();
+    if (result.success && result.uploads.length > 0) {
+      setStudentUploads(result.uploads);
+    }
+    setIsLoading(false);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -81,23 +99,44 @@ export default function StudentUploads() {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadFiles = () => {
-    // Simulate upload
-    pendingFiles.forEach((item, index) => {
-      setTimeout(() => {
+  const uploadFiles = async () => {
+    if (pendingFiles.length === 0) return;
+    
+    setIsUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const item of pendingFiles) {
+      const result = await uploadStudentFile(item.file, item.category);
+      
+      if (result.success && result.upload) {
+        successCount++;
+        // Add to local state
         const newUpload: StudentUpload = {
-          id: `su-${Date.now()}-${index}`,
+          id: result.upload.id,
           studentId: 'student-1',
-          fileName: item.file.name,
-          fileSize: formatFileSize(item.file.size),
-          category: item.category,
-          status: 'processing',
-          uploadedAt: new Date().toISOString(),
+          fileName: result.upload.fileName,
+          fileSize: result.upload.fileSize,
+          category: result.upload.category as UploadCategory,
+          status: result.upload.status as StudentUpload['status'],
+          uploadedAt: result.upload.uploadedAt,
         };
         addStudentUpload(newUpload);
-      }, index * 500);
-    });
+      } else {
+        errorCount++;
+        console.error('Upload failed:', result.error);
+      }
+    }
+
     setPendingFiles([]);
+    setIsUploading(false);
+
+    if (successCount > 0) {
+      toast.success(`${successCount} file${successCount !== 1 ? 's' : ''} uploaded successfully`);
+    }
+    if (errorCount > 0) {
+      toast.error(`${errorCount} file${errorCount !== 1 ? 's' : ''} failed to upload`);
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -139,7 +178,7 @@ export default function StudentUploads() {
         );
       case 'analyzed':
         return (
-          <Badge variant="default" className="bg-emerald-500 gap-1">
+          <Badge variant="default" className="gap-1">
             <CheckCircle className="h-3 w-3" />
             Analyzed
           </Badge>
@@ -229,9 +268,18 @@ export default function StudentUploads() {
                   </Button>
                 </div>
               ))}
-              <Button onClick={uploadFiles} className="w-full">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload {pendingFiles.length} file{pendingFiles.length !== 1 ? 's' : ''}
+              <Button onClick={uploadFiles} className="w-full" disabled={isUploading}>
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload {pendingFiles.length} file{pendingFiles.length !== 1 ? 's' : ''}
+                  </>
+                )}
               </Button>
             </div>
           )}

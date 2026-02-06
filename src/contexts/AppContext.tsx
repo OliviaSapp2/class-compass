@@ -70,6 +70,7 @@ interface AppContextType {
   updateStudentProgress: (updates: Partial<StudentProgress>) => void;
   studentUploads: StudentUpload[];
   addStudentUpload: (upload: StudentUpload) => void;
+  setStudentUploads: (uploads: StudentUpload[]) => void;
   upcomingAssessments: Assessment[];
   
   // Study plan actions
@@ -143,6 +144,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addStudentUpload = (upload: StudentUpload) => {
     setStudentUploads(prev => [upload, ...prev]);
+  };
+
+  const updateStudentUploads = (uploads: StudentUpload[]) => {
+    setStudentUploads(uploads);
   };
 
   const updateStudentProgress = (updates: Partial<StudentProgress>) => {
@@ -251,6 +256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateStudentProgress,
       studentUploads,
       addStudentUpload,
+      setStudentUploads: updateStudentUploads,
       upcomingAssessments,
       generateStudyPlan,
       completeTask,
