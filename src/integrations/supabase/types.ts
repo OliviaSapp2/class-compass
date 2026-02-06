@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      educational_resources: {
+        Row: {
+          content: string | null
+          created_at: string
+          difficulty: string | null
+          grade_level: string
+          id: string
+          resource_type: string | null
+          scraped_at: string
+          source_url: string | null
+          subject: string
+          title: string
+          topic: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          difficulty?: string | null
+          grade_level?: string
+          id?: string
+          resource_type?: string | null
+          scraped_at?: string
+          source_url?: string | null
+          subject: string
+          title: string
+          topic: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          difficulty?: string | null
+          grade_level?: string
+          id?: string
+          resource_type?: string | null
+          scraped_at?: string
+          source_url?: string | null
+          subject?: string
+          title?: string
+          topic?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
