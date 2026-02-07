@@ -13,10 +13,23 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  preview: {
+    host: "0.0.0.0",
+    port: Number(process.env.PORT) || 4173,
+  },
+  plugins: [
+    react({
+      jsxRuntime: "automatic",
+    }),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  build: {
+    minify: "esbuild",
+    sourcemap: false,
   },
 }));
